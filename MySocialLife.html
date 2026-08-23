@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Social Life - Mabs Banana Fun</title>
+    <style>
+        :root {
+            --primary: #ff70a6;
+            --secondary: #ff007f;
+            --accent: #00f0ff;
+            --dark: #0f4c5c;
+            --card-bg: rgba(255, 255, 255, 0.88);
+            --text: #2d3748;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        /* --- SKY & CLOUD BACKGROUND --- */
+        body {
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #70d6ff 0%, #b8f2e6 55%, #e8fccf 100%);
+            background-attachment: fixed;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* --- RAINBOW & HOUSES SCENERY CONTAINER --- */
+        .rainbow-village-scene {
+            position: fixed;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1000px;
+            height: 520px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Giant Curved Rainbow */
+        .rainbow-arch {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 900px;
+            height: 900px;
+            border-radius: 50%;
+            box-shadow: 
+                0 0 0 22px #ff595e,   /* Red */
+                0 0 0 44px #ff924c,   /* Orange */
+                0 0 0 66px #ffca3a,   /* Yellow */
+                0 0 0 88px #8ac926,   /* Green */
+                0 0 0 110px #1982c4,  /* Blue */
+                0 0 0 132px #6a4c93;  /* Purple */
+            opacity: 0.85;
+        }
+
+        /* Rainbow Cloud Cushions at Base */
+        .cloud-left, .cloud-right {
+            position: absolute;
+            bottom: 40px;
+            width: 140px;
+            height: 60px;
+            background: #ffffff;
+            border-radius: 50px;
+            box-shadow: 
+                20px -25px 0 10px #ffffff,
+                60px -20px 0 15px #ffffff,
+                0 10px 20px rgba(0,0,0,0.08);
+        }
+        .cloud-left { left: 10px; }
+        .cloud-right { right: 10px; }
+
+        /* --- HOUSES ON TOP OF THE RAINBOW --- */
+        .house {
+            position: absolute;
+            width: 52px;
+            height: 48px;
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        /* House Roofs */
+        .house::before {
+            content: '';
+            position: absolute;
+            top: -26px;
+            left: -6px;
+            width: 0;
+            height: 0;
+            border-left: 32px solid transparent;
+            border-right: 32px solid transparent;
+            border-bottom: 26px solid #e63946;
+        }
+
+        /* Windows & Door */
+        .house::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 18px;
+            width: 16px;
+            height: 24px;
+            background: #4a4e69;
+            border-radius: 4px 4px 0 0;
+            box-shadow: 
+                -12px -16px 0 -4px #fff3b0,
+                14px -16px 0 -4px #fff3b0;
+        }
+
+        /* House 1 (Left slope) */
+        .house-1 {
+            bottom: 415px;
+            left: 280px;
+            background: #ffe6a7;
+            transform: rotate(-18deg);
+        }
+        .house-1::before { border-bottom-color: #d90429; }
+
+        /* House 2 (Peak center) */
+        .house-2 {
+            bottom: 465px;
+            left: 474px;
+            width: 60px;
+            height: 54px;
+            background: #ffd166;
+            transform: rotate(0deg);
+        }
+        .house-2::before { 
+            border-bottom-color: #3a86ff;
+            border-left-width: 36px;
+            border-right-width: 36px;
+            top: -28px;
+        }
+
+        /* House 3 (Right slope) */
+        .house-3 {
+            bottom: 415px;
+            right: 280px;
+            background: #ffc6ff;
+            transform: rotate(18deg);
+        }
+        .house-3::before { border-bottom-color: #06d6a0; }
+
+        /* House 4 (Little cottage) */
+        .house-4 {
+            bottom: 345px;
+            right: 180px;
+            width: 44px;
+            height: 40px;
+            background: #cbf3f0;
+            transform: rotate(32deg);
+        }
+        .house-4::before { 
+            border-bottom-color: #ff006e;
+            border-left-width: 28px;
+            border-right-width: 28px;
+            top: -22px;
+        }
+
+        /* --- CARTOON BEACH BANNER --- */
+        header {
+            position: relative;
+            background: linear-gradient(180deg, #48cae4 0%, #90e0ef 45%, #0077b6 46%, #0096c7 65%, #ffe6a7 66%, #dda15e 100%);
+            color: #ffffff;
+            padding: 4.5rem 1rem 5.5rem;
+            text-align: center;
+            overflow: hidden;
+            border-bottom: 5px solid #d4a373;
+            z-index: 2;
+        }
+
+        /* Sun */
+        header::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: 15%;
+            width: 80px;
+            height: 80px;
+            background: #ffb703;
+            border-radius: 50%;
+            box-shadow: 0 0 0 12px rgba(255, 183, 3, 0.3), 0 0 0 24px rgba(255, 183, 3, 0.15);
+            z-index: 1;
+        }
+
+        /* Clouds & Ocean Waves */
+        header::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle 25px at 18% 30px, #ffffff 99%, transparent 100%),
+                radial-gradient(circle 20px at 15% 35px, #ffffff 99%, transparent 100%),
+                radial-gradient(circle 20px at 21% 35px, #ffffff 99%, transparent 100%),
+                radial-gradient(circle 20px at 75% 40px, rgba(255,255,255,0.85) 99%, transparent 100%),
+                radial-gradient(circle 16px at 72% 44px, rgba(255,255,255,0.85) 99%, transparent 100%),
+                radial-gradient(circle 16px at 78% 44px, rgba(255,255,255,0.85) 99%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 10% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 30% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 50% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 70% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 90% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 60px 14px at 15% 66%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 60px 14px at 45% 66%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 60px 14px at 75% 66%, #ffffff 95%, transparent 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Banner Text */
+        header h1 {
+            position: relative;
+            z-index: 3;
+            font-size: 3rem;
+            color: #fff3b0;
+            text-shadow: 
+                3px 3px 0 #fb8500,
+                -2px -2px 0 #fb8500,
+                2px -2px 0 #fb8500,
+                -2px 2px 0 #fb8500,
+                4px 4px 10px rgba(0, 0, 0, 0.4);
+            letter-spacing: 2px;
+            transform: rotate(-1.5deg);
+            margin-bottom: 0.2rem;
+        }
+        header p {
+            position: relative;
+            z-index: 3;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Palm Tree */
+        .palm-tree {
+            position: absolute;
+            bottom: 8px;
+            left: 24px;
+            width: 14px;
+            height: 100px;
+            background: #99582a;
+            border-radius: 10px 10px 0 0;
+            transform: rotate(10deg);
+            z-index: 2;
+            box-shadow: inset -3px 0 rgba(0, 0, 0, 0.2);
+        }
+        .palm-leaves {
+            position: absolute;
+            top: -20px;
+            left: -32px;
+            width: 80px;
+            height: 35px;
+            background: #38b000;
+            border-radius: 50% 50% 20% 20%;
+            box-shadow: 
+                -25px 8px 0 -3px #2d6a4f,
+                25px 8px 0 -3px #70e000;
+        }
+
+        /* Navigation */
+        nav {
+            background: rgba(2, 62, 138, 0.95);
+            backdrop-filter: blur(6px);
+            display: flex;
+            justify-content: center;
+            padding: 0.8rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            position: relative;
+            z-index: 2;
+        }
+        nav a {
+            color: #ffffff;
+            text-decoration: none;
+            margin: 0 1.2rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: color 0.2s;
+        }
+        nav a:hover, nav a.active {
+            color: #ffca3a;
+        }
+
+        /* Content Container */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 2.5rem auto;
+            padding: 0 1rem;
+        }
+        section {
+            margin-bottom: 2.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 3px solid #ffffff;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #ff006e;
+            border-bottom: 3px dashed #ffca3a;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.2rem;
+        }
+
+        /* Social Likes & Dislikes / Grid */
+        .social-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+            margin-top: 1rem;
+        }
+        @media (max-width: 600px) {
+            .social-grid { grid-template-columns: 1fr; }
+            header h1 { font-size: 2.2rem; }
+            .palm-tree { display: none; }
+            .rainbow-village-scene { transform: translateX(-50%) scale(0.65); }
+        }
+        .card {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            padding: 1.2rem;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+        .card h3 {
+            margin-bottom: 0.4rem;
+            color: #3a86ff;
+        }
+        .card ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .card ul li {
+            padding: 0.3rem 0;
+            border-bottom: 1px dotted #e2e8f0;
+        }
+        .card ul li:last-child {
+            border-bottom: none;
+        }
+
+        footer {
+            position: relative;
+            z-index: 2;
+            background: #023e8a;
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 4rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Rainbow with Village Houses on Top -->
+    <div class="rainbow-village-scene">
+        <div class="rainbow-arch"></div>
+        <div class="house house-1"></div>
+        <div class="house house-2"></div>
+        <div class="house house-3"></div>
+        <div class="house house-4"></div>
+        <div class="cloud-left"></div>
+        <div class="cloud-right"></div>
+    </div>
+
+    <!-- Cartoon Beach Header -->
+    <header>
+        <div class="palm-tree">
+            <div class="palm-leaves"></div>
+        </div>
+        <h1>Mabs Banana Fun</h1>
+        <p>Fun Games And More</p>
+    </header>
+
+    <!-- Navigation -->
+    <nav>
+        <a href="MySocialLife.html" class="active">My Social Life</a>
+        <a href="games.html">games</a>
+        <a href="index.html">Home</a>
+    </nav>
+
+    <!-- Social Life Content -->
+    <div class="container">
+        <section id="social-intro">
+            <h2>Welcome to My Social Life! 🌈</h2>
+            <p>This is where I share what I love doing, cool hangouts with friends, my ultimate favorite things, and what gets on my nerves!</p>
+        </section>
+
+        <section id="likes-dislikes">
+            <h2>Likes & Dislikes 👍👎</h2>
+            <div class="social-grid">
+                <div class="card">
+                    <h3>Things I Love 💖</h3>
+                    <ul>
+                        <li>📖 Read books</li>
+                        <li>🎮 Play games</li>
+                        <li>📺 Watch TV</li>
+                        <li>👫 Hang out with friends or family</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Things I Dislike ❌</h3>
+                    <ul>
+                        <li>🤡 Clowns</li>
+                        <li>🍿 Horror movies</li>
+                        <li>🦟 Mosquitoes, bees and wasps</li>
+                        <li>🩹 Getting hurt</li>
+                        <li>🥦 Veggies and ketchup</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="hobbies">
+            <h2>My Favorite Hangouts 🏠</h2>
+            <p>When I'm not creating games, you can find me chilling in our rooftop rainbow treehouses, playing multiplayer matches, or planning the next big wacky game idea!</p>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 My Website. Built with clean code.</p>
+    </footer>
+
+</body>
+</html>

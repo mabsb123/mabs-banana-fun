@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asteroid Blaster</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0b0c10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #66fcf1;
+      overflow: hidden;
+    }
+    canvas {
+      background: #000000;
+      border: 2px solid #45a29e;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(102, 252, 241, 0.2);
+    }
+    .hud {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #c5c6c7;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="600" height="600"></canvas>
+  <p class="hud"><strong>[W / ↑]</strong> Thrust &nbsp;|&nbsp; <strong>[A/D / ←/→]</strong> Rotate &nbsp;|&nbsp; <strong>[Space]</strong> Fire</p>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Game State
+    let score = 0;
+    let wave = 1;
+    let gameOver = false;
+    let lasers = [];
+    let asteroids = [];
+    let particles = [];
+    const keys = {};
+
+    // Ship Object
+    const ship = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      r: 15,
+      angle: -Math.PI / 2,
+      rotation: 0,
+      thrusting: false,
+      speed: { x: 0, y: 0 },
+      friction: 0.985,
+      thrustPower: 0.12,
+      turnSpeed: 0.08
+    };
+
+    // Input Listeners
+    window.addEventListener("keydown", (e) => {
+      keys[e.code] = true;
+      if (e.code === "Space" && !gameOver) fireLaser();
+      if (gameOver && (e.code === "Space" || e.code === "Enter")) resetGame();
+    });
+    window.addEventListener("keyup", (e) => keys[e.code] = false);
+
+    // Particle Burst on Destruction
+    function createExplosion(x, y, color, count = 12) {
+      for (let i = 0; i < count; i++) {
+        const speed = Math.random() * 4 + 1;
+        const angle = Math.random() * Math.PI * 2;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 30,
+          color: color
+        });
+      }
+    }
+
+    function spawnAsteroidWave(count) {
+      for (let i = 0; i < count; i++) {
+        let x, y, dist;
+        // Ensure asteroids don't spawn right on top of the ship
+        do {
+          x = Math.random() * canvas.width;
+          y = Math.random() * canvas.height;
+          dist = Math.hypot(ship.x - x, ship.y - y);
+        } while (dist < 120);
+
+        asteroids.push(createAsteroid(x, y, 35));
+      }
+    }
+
+    function createAsteroid(x, y, radius) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 1.5 + 0.5 + (wave * 0.1);
+      return {
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: radius,
+        verts: Math.floor(Math.random() * 4) + 7,
+        offsets: Array.from({ length: 12 }, () => Math.random() * 0.4 + 0.8)
+      };
+    }
+
+    function fireLaser() {
+      lasers.push({
+        x: ship.x + Math.cos(ship.angle) * ship.r,
+        y: ship.y + Math.sin(ship.angle) * ship.r,
+        vx: Math.cos(ship.angle) * 8 + ship.speed.x,
+        vy: Math.sin(ship.angle) * 8 + ship.speed.y,
+        life: 50
+      });
+    }
+
+    function resetGame() {
+      score = 0;
+      wave = 1;
+      gameOver = false;
+      lasers = [];
+      asteroids = [];
+      particles = [];
+      ship.x = canvas.width / 2;
+      ship.y = canvas.height / 2;
+      ship.speed = { x: 0, y: 0 };
+      ship.angle = -Math.PI / 2;
+      spawnAsteroidWave(4);
+      loop();
+    }
+
+    function wrap(obj) {
+      if (obj.x < -obj.r) obj.x = canvas.width + obj.r;
+      if (obj.x > canvas.width + obj.r) obj.x = -obj.r;
+      if (obj.y < -obj.r) obj.y = canvas.height + obj.r;
+      if (obj.y > canvas.height + obj.r) obj.y = -obj.r;
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      // Ship Steering & Acceleration
+      if (keys["ArrowLeft"] || keys["KeyA"]) ship.angle -= ship.turnSpeed;
+      if (keys["ArrowRight"] || keys["KeyD"]) ship.angle += ship.turnSpeed;
+      ship.thrusting = keys["ArrowUp"] || keys["KeyW"];
+
+      if (ship.thrusting) {
+        ship.speed.x += Math.cos(ship.angle) * ship.thrustPower;
+        ship.speed.y += Math.sin(ship.angle) * ship.thrustPower;
+
+        // Engine exhaust particles
+        if (Math.random() < 0.6) {
+          particles.push({
+            x: ship.x - Math.cos(ship.angle) * ship.r,
+            y: ship.y - Math.sin(ship.angle) * ship.r,
+            vx: -Math.cos(ship.angle) * 2 + (Math.random() - 0.5),
+            vy: -Math.sin(ship.angle) * 2 + (Math.random() - 0.5),
+            life: 15,
+            color: "#ffaa00"
+          });
+        }
+      }
+
+      ship.speed.x *= ship.friction;
+      ship.speed.y *= ship.friction;
+      ship.x += ship.speed.x;
+      ship.y += ship.speed.y;
+      wrap(ship);
+
+      // Next wave check
+      if (asteroids.length === 0) {
+        wave++;
+        spawnAsteroidWave(3 + wave);
+      }
+
+      // Update Lasers
+      for (let i = lasers.length - 1; i >= 0; i--) {
+        const l = lasers[i];
+        l.x += l.vx;
+        l.y += l.vy;
+        l.life--;
+        if (l.life <= 0 || l.x < 0 || l.x > canvas.width || l.y < 0 || l.y > canvas.height) {
+          lasers.splice(i, 1);
+        }
+      }
+
+      // Update Asteroids
+      for (let i = asteroids.length - 1; i >= 0; i--) {
+        const a = asteroids[i];
+        a.x += a.vx;
+        a.y += a.vy;
+        wrap(a);
+
+        // Ship-Asteroid Collision
+        const shipDist = Math.hypot(ship.x - a.x, ship.y - a.y);
+        if (shipDist < ship.r + a.r) {
+          createExplosion(ship.x, ship.y, "#ff4444", 25);
+          gameOver = true;
+        }
+
+        // Laser-Asteroid Collisions
+        for (let j = lasers.length - 1; j >= 0; j--) {
+          const l = lasers[j];
+          const dist = Math.hypot(l.x - a.x, l.y - a.y);
+          if (dist < a.r) {
+            createExplosion(a.x, a.y, "#66fcf1", 10);
+            score += Math.floor(100 / a.r * 10);
+
+            // Break asteroid into smaller pieces
+            if (a.r > 15) {
+              asteroids.push(createAsteroid(a.x, a.y, a.r / 2));
+              asteroids.push(createAsteroid(a.x, a.y, a.r / 2));
+            }
+
+            asteroids.splice(i, 1);
+            lasers.splice(j, 1);
+            break;
+          }
+        }
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Particles
+      particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(1, p.life / 6), 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Draw Asteroids
+      ctx.strokeStyle = "#45a29e";
+      ctx.lineWidth = 2;
+      asteroids.forEach(a => {
+        ctx.beginPath();
+        for (let j = 0; j < a.verts; j++) {
+          const angle = (j / a.verts) * Math.PI * 2;
+          const r = a.r * a.offsets[j];
+          const x = a.x + Math.cos(angle) * r;
+          const y = a.y + Math.sin(angle) * r;
+          if (j === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      });
+
+      // Draw Lasers
+      ctx.fillStyle = "#66fcf1";
+      lasers.forEach(l => {
+        ctx.beginPath();
+        ctx.arc(l.x, l.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Draw Ship
+      if (!gameOver) {
+        ctx.save();
+        ctx.translate(ship.x, ship.y);
+        ctx.rotate(ship.angle);
+        ctx.strokeStyle = "#66fcf1";
+        ctx.fillStyle = "#0b0c10";
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.moveTo(ship.r, 0);
+        ctx.lineTo(-ship.r, -ship.r * 0.7);
+        ctx.lineTo(-ship.r * 0.5, 0);
+        ctx.lineTo(-ship.r, ship.r * 0.7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // HUD
+      ctx.fillStyle = "#66fcf1";
+      ctx.font = "16px 'Segoe UI', Tahoma, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(`SCORE: ${score}`, 20, 30);
+      ctx.textAlign = "right";
+      ctx.fillText(`WAVE: ${wave}`, canvas.width - 20, 30);
+
+      // Game Over Screen
+      if (gameOver) {
+        ctx.fillStyle = "rgba(11, 12, 16, 0.85)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#ff4444";
+        ctx.textAlign = "center";
+        ctx.font = "bold 32px 'Segoe UI', Tahoma, sans-serif";
+        ctx.fillText("VESSEL DESTROYED", canvas.width / 2, canvas.height / 2 - 25);
+
+        ctx.fillStyle = "#c5c6c7";
+        ctx.font = "18px 'Segoe UI', Tahoma, sans-serif";
+        ctx.fillText(`Final Wave: ${wave}  |  Score: ${score}`, canvas.width / 2, canvas.height / 2 + 15);
+
+        ctx.fillStyle = "#66fcf1";
+        ctx.fillText("Press SPACE to Deploy New Vessel", canvas.width / 2, canvas.height / 2 + 60);
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      if (!gameOver) {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    spawnAsteroidWave(4);
+    loop();
+  </script>
+</body>
+</html>

@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robo-Scrap Arena</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background: radial-gradient(circle at center, #1b263b 0%, #0d1b2a 100%);
+      color: #e0e1dd;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    h1 {
+      font-size: 2.2rem;
+      color: #00f0ff;
+      text-shadow: 0 0 12px #00f0ff, 0 0 24px #0077b6;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+    .hud {
+      display: flex;
+      gap: 2.5rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #ffe600;
+      background: rgba(13, 27, 42, 0.8);
+      padding: 6px 20px;
+      border-radius: 20px;
+      border: 2px solid #00f0ff;
+    }
+    canvas {
+      background: #0b132b;
+      border: 4px solid #415a77;
+      border-radius: 14px;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.25);
+    }
+    .instructions {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: #778da9;
+    }
+    .key-hint {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid #00f0ff;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      color: #00f0ff;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🤖 ROBO-SCRAP ARENA ⚙️</h1>
+  <div class="hud">
+    <div>SCRAP SCORE: <span id="scoreVal">0</span></div>
+    <div>CORES: <span id="coreVal">0</span></div>
+    <div>BATTERY: <span id="hpVal">⚡⚡⚡⚡⚡</span></div>
+  </div>
+
+  <canvas id="gameCanvas" width="600" height="480"></canvas>
+  <p class="instructions">Move & Aim: <span class="key-hint">Arrow Keys / WASD</span> &nbsp;|&nbsp; Fire Plasma: <span class="key-hint">Spacebar</span></p>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const scoreEl = document.getElementById("scoreVal");
+    const coreEl = document.getElementById("coreVal");
+    const hpEl = document.getElementById("hpVal");
+
+    let score = 0;
+    let coresCollected = 0;
+    let battery = 5;
+    let gameOver = false;
+
+    let bullets = [];
+    let enemies = [];
+    let cores = [];
+    let particles = [];
+    const keys = {};
+
+    // Player Battle Droid
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      size: 28,
+      speed: 4,
+      angle: 0,
+      shootCooldown: 0,
+      invulnerable: 0
+    };
+
+    window.addEventListener("keydown", (e) => {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+        e.preventDefault();
+      }
+      keys[e.key] = true;
+
+      if (gameOver && (e.key === " " || e.key === "Enter")) {
+        resetGame();
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+    });
+
+    function firePlasma() {
+      bullets.push({
+        x: player.x,
+        y: player.y,
+        vx: Math.cos(player.angle) * 8.5,
+        vy: Math.sin(player.angle) * 8.5,
+        r: 5,
+        color: "#00f0ff"
+      });
+      createSparks(player.x, player.y, "#00f0ff", 6);
+      player.shootCooldown = 14;
+    }
+
+    function spawnCore() {
+      cores.push({
+        x: Math.random() * (canvas.width - 60) + 30,
+        y: Math.random() * (canvas.height - 60) + 30,
+        r: 8
+      });
+    }
+
+    function spawnEnemy() {
+      const edge = Math.floor(Math.random() * 4);
+      let x, y;
+      if (edge === 0) { x = Math.random() * canvas.width; y = -20; }
+      else if (edge === 1) { x = canvas.width + 20; y = Math.random() * canvas.height; }
+      else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + 20; }
+      else { x = -20; y = Math.random() * canvas.height; }
+
+      const types = [
+        { icon: "👾", speed: 1.6, hp: 1, pts: 100 },
+        { icon: "🛸", speed: 2.2, hp: 1, pts: 150 },
+        { icon: "🦾", speed: 1.0, hp: 2, pts: 250 }
+      ];
+      const proto = types[Math.floor(Math.random() * types.length)];
+
+      enemies.push({
+        x, y,
+        speed: proto.speed + (score * 0.0003),
+        hp: proto.hp,
+        pts: proto.pts,
+        icon: proto.icon,
+        r: 16
+      });
+    }
+
+    function createSparks(x, y, color, count = 8) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = Math.random() * 4 + 1;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          color,
+          life: 18
+        });
+      }
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      // Droid Movement
+      let dx = 0;
+      let dy = 0;
+      if (keys["ArrowUp"] || keys["w"] || keys["W"]) dy -= 1;
+      if (keys["ArrowDown"] || keys["s"] || keys["S"]) dy += 1;
+      if (keys["ArrowLeft"] || keys["a"] || keys["A"]) dx -= 1;
+      if (keys["ArrowRight"] || keys["d"] || keys["D"]) dx += 1;
+
+      if (dx !== 0 || dy !== 0) {
+        player.angle = Math.atan2(dy, dx);
+        dx *= 0.7071;
+        dy *= 0.7071;
+      }
+
+      player.x += dx * player.speed;
+      player.y += dy * player.speed;
+
+      player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+      player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
+
+      // Blaster Shooting
+      if (player.shootCooldown > 0) player.shootCooldown--;
+      if (keys[" "] && player.shootCooldown <= 0) {
+        firePlasma();
+      }
+
+      if (player.invulnerable > 0) player.invulnerable--;
+
+      // Spawning
+      if (Math.random() < 0.035 && enemies.length < 12) spawnEnemy();
+      if (cores.length < 3 && Math.random() < 0.015) spawnCore();
+
+      // Update Bullets
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.x += b.vx;
+        b.y += b.vy;
+
+        if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+          bullets.splice(i, 1);
+          continue;
+        }
+
+        // Bullet vs Enemy Hit Check
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          const e = enemies[j];
+          if (Math.hypot(b.x - e.x, b.y - e.y) < b.r + e.r) {
+            createSparks(e.x, e.y, "#ffe600", 10);
+            e.hp--;
+            if (e.hp <= 0) {
+              score += e.pts;
+              scoreEl.innerText = score;
+              enemies.splice(j, 1);
+            }
+            bullets.splice(i, 1);
+            break;
+          }
+        }
+      }
+
+      // Update Enemies
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        const angle = Math.atan2(player.y - e.y, player.x - e.x);
+        e.x += Math.cos(angle) * e.speed;
+        e.y += Math.sin(angle) * e.speed;
+
+        // Player Collision
+        if (Math.hypot(player.x - e.x, player.y - e.y) < player.size / 2 + e.r) {
+          if (player.invulnerable <= 0) {
+            battery--;
+            player.invulnerable = 40;
+            hpEl.innerText = "⚡".repeat(Math.max(0, battery));
+            createSparks(player.x, player.y, "#ff3838", 16);
+            if (battery <= 0) gameOver = true;
+          }
+        }
+      }
+
+      // Collect Battery Cores
+      for (let i = cores.length - 1; i >= 0; i--) {
+        const c = cores[i];
+        if (Math.hypot(player.x - c.x, player.y - c.y) < player.size / 2 + c.r) {
+          coresCollected++;
+          score += 150;
+          if (battery < 5) battery++;
+          coreEl.innerText = coresCollected;
+          scoreEl.innerText = score;
+          hpEl.innerText = "⚡".repeat(battery);
+          createSparks(c.x, c.y, "#00f0ff", 12);
+          cores.splice(i, 1);
+        }
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Factory Floor Grid
+      ctx.strokeStyle = "rgba(65, 90, 119, 0.25)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Draw Battery Cores
+      cores.forEach(c => {
+        ctx.fillStyle = "#ffe600";
+        ctx.shadowColor = "#ffe600";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // Draw Enemies
+      enemies.forEach(e => {
+        ctx.font = "26px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(e.icon, e.x, e.y + 8);
+      });
+
+      // Draw Bullets
+      bullets.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // Draw Particles
+      particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(1, p.life / 5), 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Draw Player Robot
+      if (!gameOver) {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.angle);
+
+        // Robot Chassis
+        ctx.fillStyle = player.invulnerable > 0 && Math.floor(player.invulnerable / 4) % 2 === 0 ? "#ff0055" : "#415a77";
+        ctx.strokeStyle = "#00f0ff";
+        ctx.lineWidth = 2;
+        ctx.fillRect(-14, -14, 28, 28);
+        ctx.strokeRect(-14, -14, 28, 28);
+
+        // Robot Eye Visor
+        ctx.fillStyle = "#00f0ff";
+        ctx.fillRect(4, -5, 6, 10);
+
+        // Plasma Cannon
+        ctx.fillStyle = "#e0e1dd";
+        ctx.fillRect(10, -3, 10, 6);
+
+        ctx.restore();
+      }
+
+      // Game Over Screen
+      if (gameOver) {
+        ctx.fillStyle = "rgba(13, 27, 42, 0.88)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#ff0055";
+        ctx.font = "bold 32px 'Segoe UI', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("ROBOT SYSTEM COMPROMISED!", canvas.width / 2, canvas.height / 2 - 25);
+
+        ctx.fillStyle = "#e0e1dd";
+        ctx.font = "18px 'Segoe UI', sans-serif";
+        ctx.fillText(`Scrap Score: ${score}  |  Cores Gathered: ${coresCollected}`, canvas.width / 2, canvas.height / 2 + 15);
+
+        ctx.fillStyle = "#00f0ff";
+        ctx.fillText("Press SPACE to Reboot Droid", canvas.width / 2, canvas.height / 2 + 55);
+      }
+    }
+
+    function resetGame() {
+      score = 0;
+      coresCollected = 0;
+      battery = 5;
+      gameOver = false;
+      bullets = [];
+      enemies = [];
+      cores = [];
+      particles = [];
+      player.x = canvas.width / 2;
+      player.y = canvas.height / 2;
+      player.angle = 0;
+      scoreEl.innerText = "0";
+      coreEl.innerText = "0";
+      hpEl.innerText = "⚡⚡⚡⚡⚡";
+      loop();
+    }
+
+    function loop() {
+      update();
+      draw();
+      if (!gameOver) {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    loop();
+  </script>
+</body>
+</html>

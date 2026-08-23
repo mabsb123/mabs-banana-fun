@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K-Pop Demon Hunters: Rooftop Runner</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background: radial-gradient(circle at center, #1a0033 0%, #050010 100%);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    h1 {
+      font-size: 2rem;
+      color: #ff007f;
+      text-shadow: 0 0 10px #ff007f, 0 0 20px #7928ca;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+    .hud {
+      display: flex;
+      gap: 2rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #00f0ff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+    }
+    canvas {
+      background: #090014;
+      border: 3px solid #ff007f;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(255, 0, 127, 0.35);
+    }
+    .instructions {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: #d8b4e2;
+    }
+    .key-hint {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid #ff007f;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      color: #00f0ff;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>⚡ K-POP DEMON HUNTERS: RUNNER ⚡</h1>
+  <div class="hud">
+    <div>DISTANCE: <span id="distVal">0</span>m</div>
+    <div>DEMONS BANISHED: <span id="scoreVal">0</span></div>
+    <div>HP: <span id="hpVal">❤️❤️❤️</span></div>
+  </div>
+
+  <canvas id="gameCanvas" width="700" height="380"></canvas>
+  <p class="instructions">Jump: <span class="key-hint">↑</span> &nbsp;|&nbsp; Slide: <span class="key-hint">↓</span> &nbsp;|&nbsp; Blast: <span class="key-hint">Spacebar</span></p>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const distEl = document.getElementById("distVal");
+    const scoreEl = document.getElementById("scoreVal");
+    const hpEl = document.getElementById("hpVal");
+
+    // Game Variables
+    let distance = 0;
+    let demonsBanished = 0;
+    let health = 3;
+    let gameOver = false;
+    let gameSpeed = 5;
+    let frameCount = 0;
+
+    let platforms = [];
+    let demons = [];
+    let orbs = [];
+    let blasts = [];
+    let particles = [];
+    const keys = {};
+
+    // Idol Hunter Runner
+    const player = {
+      x: 90,
+      y: 200,
+      w: 24,
+      h: 44,
+      vy: 0,
+      gravity: 0.65,
+      isGrounded: false,
+      jumpsLeft: 2,
+      sliding: false,
+      invulnerable: 0
+    };
+
+    window.addEventListener("keydown", (e) => {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+        e.preventDefault();
+      }
+      keys[e.key] = true;
+
+      // Jump & Double Jump
+      if (e.key === "ArrowUp" && !gameOver && player.jumpsLeft > 0) {
+        player.vy = -12;
+        player.jumpsLeft--;
+        player.isGrounded = false;
+        createParticles(player.x, player.y + player.h, "#00f0ff", 8);
+      }
+
+      // Shoot Spirit Blast
+      if (e.key === " " && !gameOver) {
+        fireBlast();
+      }
+
+      if (gameOver && (e.key === " " || e.key === "Enter")) {
+        resetGame();
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+    });
+
+    function fireBlast() {
+      blasts.push({
+        x: player.x + player.w,
+        y: player.y + (player.sliding ? 10 : 20),
+        r: 6,
+        vx: 11,
+        color: "#ff007f"
+      });
+      createParticles(player.x + player.w, player.y + 20, "#ff007f", 5);
+    }
+
+    function spawnInitialPlatforms() {
+      platforms = [
+        { x: 0, y: 280, w: 450, h: 100 },
+        { x: 500, y: 270, w: 350, h: 110 }
+      ];
+    }
+
+    function createParticles(x, y, color, count = 10) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = Math.random() * 3 + 1;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          color,
+          life: 20
+        });
+      }
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      frameCount++;
+      distance += Math.floor(gameSpeed / 4);
+      distEl.innerText = distance;
+
+      // Adjust run speed
+      if (keys["ArrowRight"]) gameSpeed = 7;
+      else if (keys["ArrowLeft"]) gameSpeed = 3.5;
+      else gameSpeed = 5;
+
+      // Slide mechanics
+      player.sliding = keys["ArrowDown"] && player.isGrounded;
+      player.h = player.sliding ? 22 : 44;
+
+      // Gravity & Physics
+      player.vy += player.gravity;
+      player.y += player.vy;
+
+      // Ground / Platform Collision
+      player.isGrounded = false;
+      platforms.forEach(p => {
+        if (
+          player.x + player.w > p.x &&
+          player.x < p.x + p.w &&
+          player.y + player.h >= p.y &&
+          player.y + player.h <= p.y + 14 &&
+          player.vy >= 0
+        ) {
+          player.y = p.y - player.h;
+          player.vy = 0;
+          player.isGrounded = true;
+          player.jumpsLeft = 2;
+        }
+      });
+
+      // Pit Fall Check
+      if (player.y > canvas.height + 60) {
+        takeDamage(true);
+      }
+
+      if (player.invulnerable > 0) player.invulnerable--;
+
+      // Move Platforms
+      platforms.forEach(p => p.x -= gameSpeed);
+
+      // Generate New Rooftop Platforms
+      const lastP = platforms[platforms.length - 1];
+      if (lastP.x + lastP.w < canvas.width + 200) {
+        const gap = Math.random() * 110 + 60;
+        const newW = Math.random() * 250 + 200;
+        const newY = Math.min(310, Math.max(200, lastP.y + (Math.random() * 60 - 30)));
+        const newP = { x: lastP.x + lastP.w + gap, y: newY, w: newW, h: 120 };
+        platforms.push(newP);
+
+        // Spawn Demon on Platform
+        if (Math.random() < 0.65) {
+          const demonIcons = ["👹", "👺", "👻", "🦇"];
+          demons.push({
+            x: newP.x + Math.random() * (newP.w - 60) + 30,
+            y: newP.y - 30,
+            r: 16,
+            icon: demonIcons[Math.floor(Math.random() * demonIcons.length)]
+          });
+        }
+
+        // Spawn Glowing K-Pop Music Orbs
+        if (Math.random() < 0.5) {
+          orbs.push({
+            x: newP.x + newP.w / 2,
+            y: newP.y - 70,
+            r: 8
+          });
+        }
+      }
+
+      // Cleanup off-screen platforms
+      platforms = platforms.filter(p => p.x + p.w > -100);
+
+      // Update Blasts
+      for (let i = blasts.length - 1; i >= 0; i--) {
+        const b = blasts[i];
+        b.x += b.vx;
+
+        if (b.x > canvas.width + 50) {
+          blasts.splice(i, 1);
+          continue;
+        }
+
+        // Blast vs Demon
+        for (let j = demons.length - 1; j >= 0; j--) {
+          const d = demons[j];
+          if (Math.hypot(b.x - d.x, b.y - (d.y + 10)) < b.r + d.r) {
+            createParticles(d.x, d.y + 10, "#ff007f", 12);
+            demons.splice(j, 1);
+            blasts.splice(i, 1);
+            demonsBanished++;
+            scoreEl.innerText = demonsBanished;
+            break;
+          }
+        }
+      }
+
+      // Update Demons
+      for (let i = demons.length - 1; i >= 0; i--) {
+        const d = demons[i];
+        d.x -= gameSpeed;
+
+        // Player Collision
+        if (
+          player.x + player.w > d.x - d.r &&
+          player.x < d.x + d.r &&
+          player.y + player.h > d.y &&
+          player.y < d.y + 28
+        ) {
+          takeDamage(false);
+          demons.splice(i, 1);
+        }
+
+        if (d.x < -40) demons.splice(i, 1);
+      }
+
+      // Update Music Orbs
+      for (let i = orbs.length - 1; i >= 0; i--) {
+        const o = orbs[i];
+        o.x -= gameSpeed;
+
+        if (Math.hypot(player.x + player.w / 2 - o.x, player.y + player.h / 2 - o.y) < player.w + o.r) {
+          createParticles(o.x, o.y, "#00f0ff", 10);
+          orbs.splice(i, 1);
+          demonsBanished += 2;
+          scoreEl.innerText = demonsBanished;
+        }
+
+        if (o.x < -30) orbs.splice(i, 1);
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life--;
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function takeDamage(instantKill) {
+      if (player.invulnerable > 0 && !instantKill) return;
+
+      health = instantKill ? 0 : health - 1;
+      player.invulnerable = 45;
+      hpEl.innerText = "❤️".repeat(Math.max(0, health));
+      createParticles(player.x, player.y, "#ff3838", 15);
+
+      if (health <= 0) {
+        gameOver = true;
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Distant City Skyline Silhouette
+      ctx.fillStyle = "#0c0217";
+      for (let i = 0; i < 10; i++) {
+        ctx.fillRect(i * 80, 100 + (i % 3) * 30, 60, 280);
+      }
+
+      // Draw Rooftops
+      platforms.forEach(p => {
+        ctx.fillStyle = "#15082b";
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+
+        // Glowing Neon Edge
+        ctx.strokeStyle = "#ff007f";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + p.w, p.y);
+        ctx.stroke();
+      });
+
+      // Draw Music Orbs
+      orbs.forEach(o => {
+        ctx.fillStyle = "#00f0ff";
+        ctx.shadowColor = "#00f0ff";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // Draw Demons
+      demons.forEach(d => {
+        ctx.font = "24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(d.icon, d.x, d.y + 20);
+      });
+
+      // Draw Spirit Blasts
+      blasts.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // Draw Particles
+      particles.forEach(pt => {
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, Math.max(1, pt.life / 5), 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Draw K-Pop Idol Hunter
+      if (!gameOver) {
+        ctx.save();
+        ctx.fillStyle = player.invulnerable > 0 && Math.floor(player.invulnerable / 4) % 2 === 0 ? "#ff007f" : "#00f0ff";
+        ctx.shadowColor = "#00f0ff";
+        ctx.shadowBlur = 12;
+
+        if (player.sliding) {
+          ctx.fillRect(player.x, player.y, player.w + 12, player.h);
+        } else {
+          ctx.fillRect(player.x, player.y, player.w, player.h);
+        }
+
+        // Hunter Neon Headband
+        ctx.fillStyle = "#ffe600";
+        ctx.fillRect(player.x, player.y + 6, player.w, 4);
+
+        ctx.restore();
+      }
+
+      // Game Over Screen
+      if (gameOver) {
+        ctx.fillStyle = "rgba(10, 0, 20, 0.88)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#ff007f";
+        ctx.font = "bold 30px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("RUN ENDED!", canvas.width / 2, canvas.height / 2 - 25);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "18px sans-serif";
+        ctx.fillText(`Distance: ${distance}m  |  Demons Banished: ${demonsBanished}`, canvas.width / 2, canvas.height / 2 + 15);
+
+        ctx.fillStyle = "#00f0ff";
+        ctx.fillText("Press SPACE to Sprint Again", canvas.width / 2, canvas.height / 2 + 55);
+      }
+    }
+
+    function resetGame() {
+      distance = 0;
+      demonsBanished = 0;
+      health = 3;
+      gameOver = false;
+      gameSpeed = 5;
+      demons = [];
+      orbs = [];
+      blasts = [];
+      particles = [];
+      player.x = 90;
+      player.y = 150;
+      player.vy = 0;
+      distEl.innerText = "0";
+      scoreEl.innerText = "0";
+      hpEl.innerText = "❤️❤️❤️";
+      spawnInitialPlatforms();
+      loop();
+    }
+
+    function loop() {
+      update();
+      draw();
+      if (!gameOver) {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    spawnInitialPlatforms();
+    loop();
+  </script>
+</body>
+</html>

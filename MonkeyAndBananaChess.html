@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monkey & Banana Chess</title>
+  <style>
+    :root {
+      --light-sq: #fefae0;
+      --dark-sq: #dda15e;
+      --banana-yellow: #ffd000;
+      --monkey-brown: #6f4518;
+      --highlight: #70e000;
+      --capture-hint: #e63946;
+      --selected: #ffb703;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+    }
+    body {
+      background: linear-gradient(135deg, #283618 0%, #606c38 50%, #1b260f 100%);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+    h1 {
+      color: #ffb703;
+      text-shadow: 3px 3px 0 #bc6c25, 0 0 10px rgba(0,0,0,0.5);
+      margin-bottom: 0.5rem;
+      font-size: 2.2rem;
+      text-align: center;
+    }
+    .status-panel {
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+      background: rgba(0, 0, 0, 0.45);
+      padding: 0.5rem 1.5rem;
+      border-radius: 20px;
+      border: 2px solid #ffb703;
+    }
+
+    /* --- BOARD WRAPPER --- */
+    #board-wrapper {
+      position: relative;
+      border: 8px solid #432818;
+      border-radius: 12px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+      background: #432818;
+    }
+    #chessboard {
+      display: grid;
+      grid-template-columns: repeat(8, 64px);
+      grid-template-rows: repeat(8, 64px);
+    }
+    .square {
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .square.light { background-color: var(--light-sq); }
+    .square.dark { background-color: var(--dark-sq); }
+    .square.selected { background-color: var(--selected) !important; }
+
+    /* Yellow & Brown Piece Themes */
+    .yellow-team {
+      color: var(--banana-yellow);
+      text-shadow: 0 0 2px #000, 0 0 8px rgba(255, 208, 0, 0.8);
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8));
+    }
+    .brown-team {
+      color: var(--monkey-brown);
+      text-shadow: 0 0 2px #ffe6a7, 0 0 6px rgba(111, 69, 24, 0.9);
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8));
+    }
+
+    /* Valid move hints */
+    .square.move-target::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: rgba(112, 224, 0, 0.75);
+      border-radius: 50%;
+    }
+    .square.capture-target::after {
+      content: '';
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      border: 4px solid var(--capture-hint);
+      border-radius: 50%;
+    }
+
+    /* Modal / Start Menu */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      backdrop-filter: blur(6px);
+    }
+    .modal-card {
+      background: #283618;
+      border: 4px solid #ffb703;
+      padding: 2.5rem;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      max-width: 420px;
+      width: 90%;
+    }
+    .modal-card h2 {
+      color: #ffb703;
+      margin-bottom: 1.5rem;
+      font-size: 1.8rem;
+    }
+    .modal-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .btn {
+      background: #ffb703;
+      color: #283618;
+      font-weight: bold;
+      border: none;
+      padding: 0.7rem 1.4rem;
+      font-size: 1.1rem;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #bc6c25;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn:hover {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #bc6c25;
+    }
+    .controls {
+      margin-top: 1.2rem;
+      display: flex;
+      gap: 1rem;
+    }
+    .legend {
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      color: #fefae0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mode Selector Modal -->
+  <div class="modal-overlay" id="modeModal">
+    <div class="modal-card">
+      <h2>Select Game Mode</h2>
+      <div class="modal-btns">
+        <button class="btn" onclick="startGame('single')">👤 1 Player (vs Monkey AI)</button>
+        <button class="btn" onclick="startGame('multi')">👥 2 Players (Pass & Play)</button>
+      </div>
+    </div>
+  </div>
+
+  <h1>🍌 Banana & Monkey Chess 🐵</h1>
+  <div class="status-panel" id="status">Yellow Team's Turn</div>
+
+  <div id="board-wrapper">
+    <div id="chessboard"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" onclick="showModal()">Change Mode</button>
+    <button class="btn" onclick="resetBoard()">Reset Game</button>
+  </div>
+
+  <div class="legend">
+    <p><strong>💛 Yellow:</strong> Banana Queen (🍌) &nbsp;|&nbsp; <strong>🤎 Brown:</strong> Monkey King (🐵)</p>
+  </div>
+
+  <script>
+    const boardEl = document.getElementById("chessboard");
+    const statusEl = document.getElementById("status");
+    const modalEl = document.getElementById("modeModal");
+
+    let gameMode = "multi"; // "single" or "multi"
+
+    // Piece Sprites
+    const PIECES = {
+      wK: "🍌👑", wQ: "🍌", wR: "♖", wB: "♗", wN: "♘", wP: "♙",
+      bK: "🐵",   bQ: "🦍", bR: "♜", bB: "♝", bN: "♞", bP: "♟"
+    };
+
+    let board = [];
+    let turn = "w";
+    let selectedSquare = null;
+    let validMoves = [];
+
+    const initialBoard = [
+      ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"],
+      ["bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP"],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP"],
+      ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
+    ];
+
+    function showModal() {
+      modalEl.style.display = "flex";
+    }
+
+    function startGame(mode) {
+      gameMode = mode;
+      modalEl.style.display = "none";
+      resetBoard();
+    }
+
+    function createBoard() {
+      boardEl.innerHTML = "";
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = document.createElement("div");
+          sq.className = `square ${(r + c) % 2 === 0 ? "light" : "dark"}`;
+          sq.dataset.row = r;
+          sq.dataset.col = c;
+          sq.addEventListener("click", () => handleSquareClick(r, c));
+          boardEl.appendChild(sq);
+        }
+      }
+      render();
+    }
+
+    function render() {
+      const squares = document.querySelectorAll(".square");
+      squares.forEach(sq => {
+        const r = parseInt(sq.dataset.row);
+        const c = parseInt(sq.dataset.col);
+        const piece = board[r][c];
+
+        sq.className = `square ${(r + c) % 2 === 0 ? "light" : "dark"}`;
+        sq.innerText = piece ? PIECES[piece] : "";
+
+        if (piece) {
+          sq.classList.add(piece.startsWith("w") ? "yellow-team" : "brown-team");
+        }
+
+        if (selectedSquare && selectedSquare.r === r && selectedSquare.c === c) {
+          sq.classList.add("selected");
+        }
+
+        const isMove = validMoves.some(m => m.r === r && m.c === c);
+        if (isMove) {
+          if (board[r][c]) sq.classList.add("capture-target");
+          else sq.classList.add("move-target");
+        }
+      });
+
+      statusEl.innerText = `${turn === "w" ? "💛 Yellow (Banana Team)" : "🤎 Brown (Monkey Team)"}'s Turn`;
+    }
+
+    function handleSquareClick(r, c) {
+      if (gameMode === "single" && turn === "b") return; // Block input during AI turn
+
+      const piece = board[r][c];
+
+      if (selectedSquare) {
+        const move = validMoves.find(m => m.r === r && m.c === c);
+        if (move) {
+          executeMove(selectedSquare.r, selectedSquare.c, r, c);
+          selectedSquare = null;
+          validMoves = [];
+          render();
+
+          if (gameMode === "single" && turn === "b") {
+            setTimeout(makeAIMove, 600);
+          }
+          return;
+        }
+      }
+
+      if (piece && piece.startsWith(turn)) {
+        selectedSquare = { r, c };
+        validMoves = getValidMoves(r, c, piece);
+      } else {
+        selectedSquare = null;
+        validMoves = [];
+      }
+      render();
+    }
+
+    function executeMove(fromR, fromC, toR, toC) {
+      const piece = board[fromR][fromC];
+      const target = board[toR][toC];
+
+      if (target === "bK") alert("🍌 Yellow Banana Team wins by capturing the Monkey King!");
+      if (target === "wK") alert("🐵 Brown Monkey Team wins by capturing the Banana King!");
+
+      board[toR][toC] = piece;
+      board[fromR][fromC] = "";
+
+      // Pawn promotion to Queen
+      if (piece === "wP" && toR === 0) board[toR][toC] = "wQ";
+      if (piece === "bP" && toR === 7) board[toR][toC] = "bQ";
+
+      turn = turn === "w" ? "b" : "w";
+    }
+
+    function makeAIMove() {
+      const allMoves = [];
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          if (board[r][c].startsWith("b")) {
+            const moves = getValidMoves(r, c, board[r][c]);
+            moves.forEach(m => allMoves.push({ fromR: r, fromC: c, toR: m.r, toC: m.c, target: board[m.r][m.c] }));
+          }
+        }
+      }
+
+      if (allMoves.length === 0) return;
+
+      // Prefer capturing moves
+      const captureMoves = allMoves.filter(m => m.target !== "");
+      const selected = captureMoves.length > 0 
+        ? captureMoves[Math.floor(Math.random() * captureMoves.length)]
+        : allMoves[Math.floor(Math.random() * allMoves.length)];
+
+      executeMove(selected.fromR, selected.fromC, selected.toR, selected.toC);
+      render();
+    }
+
+    function getValidMoves(r, c, piece) {
+      const moves = [];
+      const color = piece[0];
+      const type = piece[1];
+      const opp = color === "w" ? "b" : "w";
+
+      const inBounds = (nr, nc) => nr >= 0 && nr < 8 && nc >= 0 && nc < 8;
+
+      const addSlide = (dr, dc) => {
+        let nr = r + dr;
+        let nc = c + dc;
+        while (inBounds(nr, nc)) {
+          if (!board[nr][nc]) {
+            moves.push({ r: nr, c: nc });
+          } else {
+            if (board[nr][nc].startsWith(opp)) moves.push({ r: nr, c: nc });
+            break;
+          }
+          nr += dr;
+          nc += dc;
+        }
+      };
+
+      if (type === "P") {
+        const dir = color === "w" ? -1 : 1;
+        const startRow = color === "w" ? 6 : 1;
+        if (inBounds(r + dir, c) && !board[r + dir][c]) {
+          moves.push({ r: r + dir, c: c });
+          if (r === startRow && !board[r + 2 * dir][c]) {
+            moves.push({ r: r + 2 * dir, c: c });
+          }
+        }
+        [-1, 1].forEach(dc => {
+          if (inBounds(r + dir, c + dc) && board[r + dir][c + dc] && board[r + dir][c + dc].startsWith(opp)) {
+            moves.push({ r: r + dir, c: c + dc });
+          }
+        });
+      }
+
+      if (type === "N") {
+        const jumps = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        jumps.forEach(([dr, dc]) => {
+          const nr = r + dr, nc = c + dc;
+          if (inBounds(nr, nc) && (!board[nr][nc] || board[nr][nc].startsWith(opp))) {
+            moves.push({ r: nr, c: nc });
+          }
+        });
+      }
+
+      if (type === "R" || type === "Q") {
+        [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr, dc]) => addSlide(dr, dc));
+      }
+
+      if (type === "B" || type === "Q") {
+        [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr, dc]) => addSlide(dr, dc));
+      }
+
+      if (type === "K") {
+        [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([dr, dc]) => {
+          const nr = r + dr, nc = c + dc;
+          if (inBounds(nr, nc) && (!board[nr][nc] || board[nr][nc].startsWith(opp))) {
+            moves.push({ r: nr, c: nc });
+          }
+        });
+      }
+
+      return moves;
+    }
+
+    function resetBoard() {
+      board = JSON.parse(JSON.stringify(initialBoard));
+      turn = "w";
+      selectedSquare = null;
+      validMoves = [];
+      createBoard();
+    }
+
+    createBoard();
+  </script>
+</body>
+</html>

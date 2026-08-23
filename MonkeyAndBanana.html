@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monkey Banana Catch</title>
+  <style>
+    body {
+      margin: 0;
+      background: #1b263b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      color: #fff;
+    }
+    #game-container {
+      position: relative;
+    }
+    canvas {
+      background: #70c1b3;
+      border: 4px solid #fff;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+    .instructions {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #e0e1dd;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+  </div>
+  <p class="instructions">Use <strong>Left / Right Arrows</strong> (or <strong>A / D</strong>) to move</p>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Game Variables
+    let score = 0;
+    let lives = 3;
+    let gameOver = false;
+    let bananas = [];
+    let spawnRate = 60;
+    let frameCount = 0;
+
+    // Monkey Player
+    const monkey = {
+      x: canvas.width / 2 - 20,
+      y: canvas.height - 50,
+      width: 40,
+      height: 40,
+      speed: 7,
+      dx: 0
+    };
+
+    // Keyboard Controls
+    const keys = {};
+    window.addEventListener("keydown", (e) => {
+      keys[e.key] = true;
+      if (gameOver && (e.key === " " || e.key === "Enter")) {
+        resetGame();
+      }
+    });
+    window.addEventListener("keyup", (e) => keys[e.key] = false);
+
+    function spawnBanana() {
+      const x = Math.random() * (canvas.width - 20) + 10;
+      const speed = 2 + Math.random() * 3 + (score * 0.1);
+      bananas.push({ x: x, y: -20, radius: 15, speed: speed });
+    }
+
+    function resetGame() {
+      score = 0;
+      lives = 3;
+      bananas = [];
+      gameOver = false;
+      monkey.x = canvas.width / 2 - 20;
+      loop();
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      // Handle Monkey Movement
+      if (keys["ArrowLeft"] || keys["a"] || keys["A"]) monkey.dx = -monkey.speed;
+      else if (keys["ArrowRight"] || keys["d"] || keys["D"]) monkey.dx = monkey.speed;
+      else monkey.dx = 0;
+
+      monkey.x += monkey.dx;
+      if (monkey.x < 0) monkey.x = 0;
+      if (monkey.x + monkey.width > canvas.width) monkey.x = canvas.width - monkey.width;
+
+      // Spawn Bananas
+      frameCount++;
+      if (frameCount % spawnRate === 0) {
+        spawnBanana();
+      }
+
+      // Update Bananas & Collisions
+      for (let i = bananas.length - 1; i >= 0; i--) {
+        const b = bananas[i];
+        b.y += b.speed;
+
+        // Catch banana
+        if (
+          b.y + b.radius >= monkey.y &&
+          b.x >= monkey.x &&
+          b.x <= monkey.x + monkey.width
+        ) {
+          score++;
+          bananas.splice(i, 1);
+          continue;
+        }
+
+        // Miss banana
+        if (b.y - b.radius > canvas.height) {
+          lives--;
+          bananas.splice(i, 1);
+          if (lives <= 0) {
+            gameOver = true;
+          }
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Ground
+      ctx.fillStyle = "#247ba0";
+      ctx.fillRect(0, canvas.height - 10, canvas.width, 10);
+
+      // Draw Monkey
+      ctx.font = "36px serif";
+      ctx.textAlign = "center";
+      ctx.fillText("🐵", monkey.x + monkey.width / 2, monkey.y + 32);
+
+      // Draw Bananas
+      ctx.font = "24px serif";
+      bananas.forEach(b => {
+        ctx.fillText("🍌", b.x, b.y);
+      });
+
+      // Draw Score & Lives
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 16px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText(`Score: ${score}`, 15, 25);
+      ctx.textAlign = "right";
+      ctx.fillText(`Lives: ${"❤️".repeat(lives)}`, canvas.width - 15, 25);
+
+      // Game Over Screen
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.font = "bold 28px Arial";
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
+
+        ctx.font = "18px Arial";
+        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 15);
+        ctx.fillText("Press SPACE to Play Again", canvas.width / 2, canvas.height / 2 + 50);
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      if (!gameOver) {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    loop();
+  </script>
+</body>
+</html>

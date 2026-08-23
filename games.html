@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Games - Mabs Banana Fun</title>
+    <style>
+        :root {
+            --primary: #ffb703;
+            --mario-red: #e52521;
+            --luigi-green: #00a800;
+            --brick-brown: #b84418;
+            --coin-gold: #fbd000;
+            --pipe-green: #00a800;
+            --sky-blue: #5c94fc;
+            --dark: #0f4c5c;
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --text: #2b2d42;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        /* --- DIGITAL MARIO & LUIGI WORLD BACKGROUND --- */
+        body {
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            background-color: #5c94fc;
+            background-image: 
+                /* Subtle Retro Digital Scanlines */
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)),
+                /* Digital Pixel Grid Overlay */
+                linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+                /* Classic 8-Bit Sky Gradient */
+                linear-gradient(180deg, #3877ec 0%, #5c94fc 40%, #90b8fc 75%, #009620 76%, #00a800 78%, #c84c0c 80%, #a43a08 100%);
+            background-size: 100% 4px, 6px 100%, 32px 32px, 32px 32px, 100% 100%;
+            background-attachment: fixed;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* --- BACKGROUND SCENERY (Mario, Luigi, Question Blocks, Pipes) --- */
+        .mario-stage-scene {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Floating 8-Bit Mystery '?' Blocks */
+        .q-block {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            background: #fc9838;
+            border: 4px solid #000;
+            box-shadow: inset 4px 4px 0 #fcd8a8, inset -4px -4px 0 #a44800, 0 8px 16px rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 26px;
+            color: #000;
+        }
+        .q-block-1 { top: 220px; left: 8%; animation: floatBlock 2.5s ease-in-out infinite alternate; }
+        .q-block-2 { top: 160px; right: 10%; animation: floatBlock 3s ease-in-out infinite alternate; }
+
+        @keyframes floatBlock {
+            0% { transform: translateY(0px); }
+            100% { transform: translateY(-10px); }
+        }
+
+        /* Warp Pipes */
+        .pipe-left, .pipe-right {
+            position: absolute;
+            bottom: 0;
+            width: 80px;
+            height: 120px;
+            background: #00a800;
+            border: 4px solid #000;
+            border-bottom: none;
+            box-shadow: inset 10px 0 0 #00e000, inset -10px 0 0 #005000;
+        }
+        .pipe-left { left: 4%; }
+        .pipe-right { right: 4%; height: 160px; }
+
+        .pipe-left::before, .pipe-right::before {
+            content: '';
+            position: absolute;
+            top: -24px;
+            left: -8px;
+            width: 92px;
+            height: 24px;
+            background: #00a800;
+            border: 4px solid #000;
+            box-shadow: inset 10px 0 0 #00e000, inset -10px 0 0 #005000;
+        }
+
+        /* Digital Pixel Mario (Left Side) */
+        .pixel-character {
+            position: absolute;
+            bottom: 120px;
+            width: 14px;
+            height: 14px;
+            filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
+        }
+
+        .mario-sprite {
+            left: 14%;
+            background: #e52521;
+            box-shadow:
+                14px 0 #e52521, 28px 0 #e52521, 42px 0 #e52521, 56px 0 #e52521,
+                14px 14px #e52521, 28px 14px #e52521, 42px 14px #e52521, 56px 14px #e52521, 70px 14px #e52521,
+                14px 28px #6a3805, 28px 28px #6a3805, 42px 28px #ffd0a4, 56px 28px #6a3805,
+                0px 42px #6a3805, 14px 42px #ffd0a4, 28px 42px #6a3805, 42px 42px #ffd0a4, 56px 42px #ffd0a4, 70px 42px #6a3805,
+                14px 56px #ffd0a4, 28px 56px #ffd0a4, 42px 56px #ffd0a4, 56px 56px #ffd0a4, 70px 56px #ffd0a4,
+                28px 70px #e52521, 42px 70px #002594, 56px 70px #002594,
+                14px 84px #002594, 28px 84px #e52521, 42px 84px #002594, 56px 84px #002594, 70px 84px #002594,
+                14px 98px #002594, 28px 98px #002594, 42px 98px #002594, 56px 98px #002594,
+                14px 112px #6a3805, 28px 112px #6a3805, 56px 112px #6a3805, 70px 112px #6a3805;
+        }
+
+        /* Digital Pixel Luigi (Right Side) */
+        .luigi-sprite {
+            right: 18%;
+            background: #00a800;
+            box-shadow:
+                14px 0 #00a800, 28px 0 #00a800, 42px 0 #00a800, 56px 0 #00a800,
+                14px 14px #00a800, 28px 14px #00a800, 42px 14px #00a800, 56px 14px #00a800, 70px 14px #00a800,
+                14px 28px #6a3805, 28px 28px #6a3805, 42px 28px #ffd0a4, 56px 28px #6a3805,
+                0px 42px #6a3805, 14px 42px #ffd0a4, 28px 42px #6a3805, 42px 42px #ffd0a4, 56px 42px #ffd0a4, 70px 42px #6a3805,
+                14px 56px #ffd0a4, 28px 56px #ffd0a4, 42px 56px #ffd0a4, 56px 56px #ffd0a4, 70px 56px #ffd0a4,
+                28px 70px #00a800, 42px 70px #002594, 56px 70px #002594,
+                14px 84px #002594, 28px 84px #00a800, 42px 84px #002594, 56px 84px #002594, 70px 84px #002594,
+                14px 98px #002594, 28px 98px #002594, 42px 98px #002594, 56px 98px #002594,
+                14px 112px #6a3805, 28px 112px #6a3805, 56px 112px #6a3805, 70px 112px #6a3805;
+        }
+
+        /* --- CARTOON BEACH BANNER --- */
+        header {
+            position: relative;
+            background: linear-gradient(180deg, #48cae4 0%, #90e0ef 45%, #0077b6 46%, #0096c7 65%, #ffe6a7 66%, #dda15e 100%);
+            color: #ffffff;
+            padding: 4.5rem 1rem 5.5rem;
+            text-align: center;
+            overflow: hidden;
+            border-bottom: 5px solid #d4a373;
+            z-index: 2;
+        }
+
+        /* Sun */
+        header::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: 15%;
+            width: 80px;
+            height: 80px;
+            background: #ffb703;
+            border-radius: 50%;
+            box-shadow: 0 0 0 12px rgba(255, 183, 3, 0.3), 0 0 0 24px rgba(255, 183, 3, 0.15);
+            z-index: 1;
+        }
+
+        /* Clouds & Waves */
+        header::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle 25px at 18% 30px, #ffffff 99%, transparent 100%),
+                radial-gradient(circle 20px at 15% 35px, #ffffff 99%, transparent 100%),
+                radial-gradient(circle 20px at 21% 35px, #ffffff 99%, transparent 100%),
+                radial-gradient(circle 20px at 75% 40px, rgba(255,255,255,0.85) 99%, transparent 100%),
+                radial-gradient(circle 16px at 72% 44px, rgba(255,255,255,0.85) 99%, transparent 100%),
+                radial-gradient(circle 16px at 78% 44px, rgba(255,255,255,0.85) 99%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 10% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 30% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 50% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 70% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 45px 12px at 90% 46%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 60px 14px at 15% 66%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 60px 14px at 45% 66%, #ffffff 95%, transparent 100%),
+                radial-gradient(ellipse 60px 14px at 75% 66%, #ffffff 95%, transparent 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Banner Text */
+        header h1 {
+            position: relative;
+            z-index: 3;
+            font-size: 3rem;
+            color: #fff3b0;
+            text-shadow: 
+                3px 3px 0 #fb8500,
+                -2px -2px 0 #fb8500,
+                2px -2px 0 #fb8500,
+                -2px 2px 0 #fb8500,
+                4px 4px 10px rgba(0, 0, 0, 0.4);
+            letter-spacing: 2px;
+            transform: rotate(-1.5deg);
+            margin-bottom: 0.2rem;
+        }
+        header p {
+            position: relative;
+            z-index: 3;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Palm Tree */
+        .palm-tree {
+            position: absolute;
+            bottom: 8px;
+            left: 24px;
+            width: 14px;
+            height: 100px;
+            background: #99582a;
+            border-radius: 10px 10px 0 0;
+            transform: rotate(10deg);
+            z-index: 2;
+            box-shadow: inset -3px 0 rgba(0, 0, 0, 0.2);
+        }
+        .palm-leaves {
+            position: absolute;
+            top: -20px;
+            left: -32px;
+            width: 80px;
+            height: 35px;
+            background: #38b000;
+            border-radius: 50% 50% 20% 20%;
+            box-shadow: 
+                -25px 8px 0 -3px #2d6a4f,
+                25px 8px 0 -3px #70e000;
+        }
+
+        /* Navigation */
+        nav {
+            background: rgba(2, 62, 138, 0.95);
+            backdrop-filter: blur(6px);
+            display: flex;
+            justify-content: center;
+            padding: 0.8rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 2;
+        }
+        nav a {
+            color: #ffffff;
+            text-decoration: none;
+            margin: 0 1.2rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: color 0.2s;
+        }
+        nav a:hover, nav a.active {
+            color: #fbd000;
+        }
+
+        /* Content Area */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 2.5rem auto;
+            padding: 0 1rem;
+        }
+        section {
+            margin-bottom: 2.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            border: 4px solid #000;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.25);
+        }
+        h2 {
+            color: var(--mario-red);
+            border-bottom: 4px solid #fbd000;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.2rem;
+            letter-spacing: 1px;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+            margin-top: 1rem;
+        }
+        @media (max-width: 680px) {
+            .game-grid { grid-template-columns: 1fr; }
+            header h1 { font-size: 2.2rem; }
+            .palm-tree { display: none; }
+            .pixel-character { display: none; }
+            .q-block { display: none; }
+        }
+        .card {
+            background: #ffffff;
+            border: 3px solid #000;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 4px 4px 0 #000;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 #000;
+        }
+        .card h3 {
+            margin-bottom: 0.5rem;
+            color: #002594;
+        }
+        .btn {
+            display: inline-block;
+            background: #e52521;
+            color: white;
+            font-weight: bold;
+            padding: 0.6rem 1.2rem;
+            text-decoration: none;
+            border: 3px solid #000;
+            border-radius: 8px;
+            margin-top: 1rem;
+            box-shadow: 3px 3px 0 #000;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0 #000;
+            background: #ff3834;
+        }
+        footer {
+            position: relative;
+            z-index: 2;
+            background: #023e8a;
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 4rem;
+            font-size: 0.9rem;
+            border-top: 4px solid #000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Digital Mario & Luigi Background Scene -->
+    <div class="mario-stage-scene">
+        <div class="q-block q-block-1">?</div>
+        <div class="q-block q-block-2">?</div>
+        <div class="pixel-character mario-sprite"></div>
+        <div class="pixel-character luigi-sprite"></div>
+        <div class="pipe-left"></div>
+        <div class="pipe-right"></div>
+    </div>
+
+    <!-- Cartoon Beach Banner -->
+    <header>
+        <div class="palm-tree">
+            <div class="palm-leaves"></div>
+        </div>
+        <h1>Mabs Banana Fun</h1>
+        <p>Fun Games And More</p>
+    </header>
+
+    <!-- Navigation -->
+    <nav>
+        <a href="MySocialLife.html">My Social Life</a>
+        <a href="games.html" class="active">games</a>
+        <a href="index.html">Home</a>
+    </nav>
+
+    <!-- Games Arcade Content -->
+    <div class="container">
+        <section id="arcade-hub">
+            <h2>🕹️ Playable Arcade Games</h2>
+            <p>Welcome to the game vault! Pick any of the custom creations below and start setting high scores!</p>
+            
+            <div class="game-grid">
+                <div class="card">
+                    <h3>🐵 Banana Drop</h3>
+                    <p>Help the hungry monkey catch falling bananas while dodging misses to keep your 3 lives intact!</p>
+                    <a href="MonkeyAndBanana.html" class="btn">Play Banana Drop</a>
+                </div>
+                <div class="card">
+                    <h3>🚀 Asteroid Blaster</h3>
+                    <p>Navigate a deep-space fighter through waves of floating space rocks with full momentum controls and laser cannons!</p>
+                    <a href="AstroidRocket.html" class="btn">Play Blaster</a>
+                </div>
+                
+                <div class="card">
+                    <h3>♛ MonkeyAndBananaChess</h3>
+                    <p>you will be given an option to play by your self or with another person.Try to beat the other player you will ethier play as a monkey or a banana!
+                    
+                    <a href="MonkeyAndBananaChess.html" class="btn">Play chess</a>
+                </div>
+                  <div class="card">
+                    <h3>✨🎶🗡️ play kpop run</h3>
+                    <p>you will be given an option to play by your self or with another person.Try to beat the other player you will ethier play as a monkey or a banana!
+                    
+                    <a href="KpopRun.html" class="btn">Play KpopRun</a>
+                </div>
+                <div class="card">
+                    <h3>🤖👾 RobotGetaway</h3>
+                    <p>Try and stay alive as a robot but BEWARE
+                     preditors are coming!
+                     
+                     <a href="RobotGetaway.html" class="btn">Play RobotGataway</a>
+            </div>                          
+        </section>
+
+        <section id="upcoming">
+            <h2>⭐ Coming Soon</h2>
+            <p>Chalenges and unbeatble games amazing things to also come , stay cool
+            !</p>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 My Website. Built with clean code.</p>
+    </footer>
+
+</body>
+</html>
