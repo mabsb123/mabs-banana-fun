@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Cosmic Slime Rancher</title>
+<style>
+  * { box-sizing: border-box; user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  body {
+    margin: 0; padding: 0; background: #0b0c10; color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; overflow: hidden; touch-action: none;
+  }
+
+  #game-frame {
+    width: 850px; max-width: 100vw; height: 600px;
+    background: radial-gradient(circle at top, #1f2833 0%, #0b0c10 100%);
+    border-radius: 16px; box-shadow: 0 0 50px rgba(69, 162, 158, 0.2);
+    display: flex; position: relative; overflow: hidden;
+    border: 4px solid #1f2833;
+  }
+
+  /* --- LEFT SIDE: SLIME AREA --- */
+  #slime-area {
+    flex: 1; display: flex; flex-direction: column; align-items: center; position: relative;
+    border-right: 4px solid #1f2833; background: url('data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.2)"/></svg>');
+  }
+
+  .header-stats {
+    text-align: center; margin-top: 20px; z-index: 10;
+  }
+  #coin-display {
+    font-size: 48px; font-weight: 900; color: #66fcf1;
+    text-shadow: 0 0 20px rgba(102, 252, 241, 0.5); font-family: monospace;
+  }
+  #cps-display {
+    font-size: 18px; color: #c5c6c7; font-weight: bold; margin-top: -5px;
+  }
+
+  /* The Slime */
+  #slime-container {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    width: 100%; position: relative; cursor: pointer; z-index: 20;
+  }
+  #the-slime {
+    width: 250px; height: 220px;
+    transition: transform 0.05s ease-out, filter 0.3s;
+    filter: drop-shadow(0 15px 25px rgba(255, 105, 180, 0.4));
+    animation: breathe 3s infinite ease-in-out alternate;
+  }
+  @keyframes breathe {
+    0% { transform: scale(1, 1) translateY(0); }
+    100% { transform: scale(1.05, 0.95) translateY(10px); }
+  }
+
+  /* Particle Canvas */
+  #particle-canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 30;
+  }
+
+  /* Evolve Button */
+  #evolve-btn {
+    margin-bottom: 30px; background: linear-gradient(45deg, #ff006e, #8338ec);
+    color: white; border: none; padding: 12px 25px; border-radius: 30px;
+    font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(131, 56, 236, 0.4);
+    transition: all 0.2s; z-index: 10;
+  }
+  #evolve-btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 25px rgba(131, 56, 236, 0.6); }
+  #evolve-btn:active:not(:disabled) { transform: translateY(2px); }
+  #evolve-btn:disabled { background: #333; color: #777; box-shadow: none; cursor: not-allowed; }
+
+  /* --- RIGHT SIDE: SHOP AREA --- */
+  #shop-area {
+    width: 380px; background: #12161c; display: flex; flex-direction: column;
+  }
+  .shop-header {
+    background: #1f2833; padding: 15px; text-align: center;
+    font-size: 20px; font-weight: 900; color: #66fcf1; text-transform: uppercase;
+    border-bottom: 2px solid #45a29e;
+  }
+
+  .upgrade-list {
+    flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px;
+  }
+  
+  /* Custom Scrollbar */
+  .upgrade-list::-webkit-scrollbar { width: 8px; }
+  .upgrade-list::-webkit-scrollbar-track { background: #12161c; }
+  .upgrade-list::-webkit-scrollbar-thumb { background: #45a29e; border-radius: 4px; }
+
+  .upgrade-item {
+    background: #1f2833; border: 2px solid #2b3543; border-radius: 12px;
+    padding: 12px 15px; display: flex; align-items: center; justify-content: space-between;
+    transition: 0.2s; cursor: pointer;
+  }
+  .upgrade-item:hover:not(.locked) { border-color: #66fcf1; background: #263340; }
+  .upgrade-item:active:not(.locked) { transform: scale(0.98); }
+  
+  .upgrade-item.locked { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+
+  .upg-icon { font-size: 32px; width: 50px; text-align: center; }
+  .upg-info { flex: 1; padding: 0 10px; }
+  .upg-name { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 4px; }
+  .upg-desc { font-size: 12px; color: #c5c6c7; }
+  
+  .upg-buy { text-align: right; }
+  .upg-cost { font-size: 16px; font-weight: bold; color: #ffb703; margin-bottom: 4px; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+  .upg-count { font-size: 24px; font-weight: 900; color: #45a29e; opacity: 0.3; font-family: monospace; }
+  .upgrade-item:hover .upg-count { opacity: 0.8; }
+
+</style>
+</head>
+<body>
+
+<div id="game-frame">
+
+  <!-- LEFT: SLIME CLICKER -->
+  <div id="slime-area">
+    <canvas id="particle-canvas"></canvas>
+    
+    <div class="header-stats">
+      <div id="coin-display">0</div>
+      <div id="cps-display">0 coins per second</div>
+    </div>
+
+    <div id="slime-container">
+      <svg id="the-slime" viewBox="0 0 200 200">
+        <!-- Slime Body -->
+        <path id="slime-body" d="M 100,180 C 180,180 190,140 180,90 C 170,40 130,20 100,20 C 70,20 30,40 20,90 C 10,140 20,180 100,180 Z" fill="#ff99c8"/>
+        
+        <!-- Shine -->
+        <path d="M 50,60 Q 70,35 100,35" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="8" stroke-linecap="round"/>
+        
+        <!-- Eyes -->
+        <ellipse cx="70" cy="100" rx="8" ry="12" fill="#111"/>
+        <circle cx="68" cy="96" r="3" fill="#fff"/>
+        
+        <ellipse cx="130" cy="100" rx="8" ry="12" fill="#111"/>
+        <circle cx="128" cy="96" r="3" fill="#fff"/>
+
+        <!-- Blush -->
+        <circle cx="45" cy="115" r="10" fill="rgba(255,0,0,0.3)"/>
+        <circle cx="155" cy="115" r="10" fill="rgba(255,0,0,0.3)"/>
+
+        <!-- Mouth -->
+        <path d="M 90,120 Q 100,135 110,120" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <button id="evolve-btn" onclick="evolveSlime()">🌟 Evolve Slime (Cost: 1,000)</button>
+  </div>
+
+  <!-- RIGHT: UPGRADE SHOP -->
+  <div id="shop-area">
+    <div class="shop-header">🚀 Auto-Clicker Shop</div>
+    <div class="upgrade-list" id="shop-list">
+      <!-- Generated by JavaScript -->
+    </div>
+  </div>
+
+</div>
+
+<script>
+// --- AUDIO ENGINE ---
+let audioCtx = null;
+function playSound(type) {
+  try {
+    if (!window.AudioContext && !window.webkitAudioContext) return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    if (type === 'click') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600 + Math.random()*200, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    } else if (type === 'buy') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    } else if (type === 'evolve') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.8);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+    }
+    
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.8);
+  } catch (error) {}
+}
+
+// --- GAME DATA ---
+let coins = 0;
+let totalClicks = 0;
+
+// Upgrades Configuration
+const upgrades = [
+  { id: 'u1', name: "Auto-Tapper", desc: "A tiny finger that taps for you.", icon: "👆", baseCost: 15, cps: 1, count: 0 },
+  { id: 'u2', name: "Space Carrot", desc: "Attracts wild space bunnies.", icon: "🥕", baseCost: 100, cps: 5, count: 0 },
+  { id: 'u3', name: "Slime Cloner", desc: "Clones mini slimes to help out.", icon: "🧬", baseCost: 1100, cps: 40, count: 0 },
+  { id: 'u4', name: "Crystal Mine", desc: "Extracts coins from the asteroid.", icon: "⛏️", baseCost: 12000, cps: 250, count: 0 },
+  { id: 'u5', name: "UFO Tractor Beam", desc: "Sucks up cosmic coins.", icon: "🛸", baseCost: 130000, cps: 1500, count: 0 },
+  { id: 'u6', name: "Dyson Sphere", desc: "Harnesses the power of a star.", icon: "☀️", baseCost: 1000000, cps: 10000, count: 0 }
+];
+
+// Evolutions Configuration
+let currentEvolution = 0;
+const evolutions = [
+  { name: "Pink Baby Slime", color: "#ff99c8", shadow: "rgba(255, 105, 180, 0.4)", mult: 1, cost: 0 },
+  { name: "Electric Blue Slime", color: "#00f5d4", shadow: "rgba(0, 245, 212, 0.4)", mult: 5, cost: 1000 },
+  { name: "Lava Core Slime", color: "#ff5400", shadow: "rgba(255, 84, 0, 0.4)", mult: 25, cost: 50000 },
+  { name: "Toxic Neon Slime", color: "#39ff14", shadow: "rgba(57, 255, 20, 0.4)", mult: 100, cost: 1000000 },
+  { name: "Galactic Void Slime", color: "#7209b7", shadow: "rgba(114, 9, 183, 0.6)", mult: 500, cost: 50000000 }
+];
+
+// --- CORE LOGIC ---
+
+// Calculate current cost of an upgrade: BaseCost * (1.15 ^ count)
+function getCost(upgrade) {
+  return Math.floor(upgrade.baseCost * Math.pow(1.15, upgrade.count));
+}
+
+// Calculate total Coins Per Second
+function getCPS() {
+  let cps = 0;
+  upgrades.forEach(u => cps += (u.count * u.cps));
+  // Apply evolution multiplier
+  cps *= evolutions[currentEvolution].mult;
+  return cps;
+}
+
+// Calculate value per click
+function getClickValue() {
+  // Base 1 + 1% of CPS, multiplied by evolution tier
+  let val = 1 + Math.floor(getCPS() * 0.01);
+  val *= evolutions[currentEvolution].mult;
+  return val;
+}
+
+// Format large numbers (e.g. 1,500, 1.2M)
+function formatNumber(num) {
+  if (num >= 1000000) return (num / 1000000).toFixed(2) + "M";
+  if (num >= 1000) return Math.floor(num).toLocaleString();
+  return Math.floor(num).toString();
+}
+
+// --- UI UPDATES ---
+
+function updateUI() {
+  document.getElementById('coin-display').innerText = formatNumber(coins);
+  document.getElementById('cps-display').innerText = formatNumber(getCPS()) + " coins / sec";
+
+  // Update Shop
+  upgrades.forEach(u => {
+    const el = document.getElementById(`upg-${u.id}`);
+    if (!el) return;
+    const cost = getCost(u);
+    
+    el.querySelector('.upg-cost span').innerText = formatNumber(cost);
+    el.querySelector('.upg-count').innerText = u.count;
+    
+    if (coins >= cost) el.classList.remove('locked');
+    else el.classList.add('locked');
+  });
+
+  // Update Evolve Button
+  const evBtn = document.getElementById('evolve-btn');
+  if (currentEvolution < evolutions.length - 1) {
+    const nextEv = evolutions[currentEvolution + 1];
+    evBtn.innerText = `🌟 Evolve to ${nextEv.name} (${formatNumber(nextEv.cost)})`;
+    evBtn.disabled = coins < nextEv.cost;
+  } else {
+    evBtn.innerText = "👑 Max Evolution Reached!";
+    evBtn.disabled = true;
+  }
+}
+
+function initShop() {
+  const shopList = document.getElementById('shop-list');
+  shopList.innerHTML = '';
+  
+  upgrades.forEach(u => {
+    const div = document.createElement('div');
+    div.className = 'upgrade-item locked';
+    div.id = `upg-${u.id}`;
+    div.onclick = () => buyUpgrade(u.id);
+    
+    div.innerHTML = `
+      <div class="upg-icon">${u.icon}</div>
+      <div class="upg-info">
+        <div class="upg-name">${u.name}</div>
+        <div class="upg-desc">+${formatNumber(u.cps * evolutions[currentEvolution].mult)} CPS</div>
+      </div>
+      <div class="upg-buy">
+        <div class="upg-cost">⭐ <span>${formatNumber(getCost(u))}</span></div>
+        <div class="upg-count">${u.count}</div>
+      </div>
+    `;
+    shopList.appendChild(div);
+  });
+}
+
+// --- INTERACTION ---
+
+function buyUpgrade(id) {
+  const u = upgrades.find(upg => upg.id === id);
+  const cost = getCost(u);
+  if (coins >= cost) {
+    coins -= cost;
+    u.count++;
+    playSound('buy');
+    
+    // Re-render shop descriptions to show updated multiplier impact
+    initShop(); 
+    updateUI();
+  }
+}
+
+function evolveSlime() {
+  if (currentEvolution >= evolutions.length - 1) return;
+  const nextEv = evolutions[currentEvolution + 1];
+  
+  if (coins >= nextEv.cost) {
+    coins -= nextEv.cost;
+    currentEvolution++;
+    
+    // Change Visuals
+    const slimeBody = document.getElementById('slime-body');
+    const theSlime = document.getElementById('the-slime');
+    
+    slimeBody.setAttribute('fill', nextEv.color);
+    theSlime.style.filter = `drop-shadow(0 15px 30px ${nextEv.shadow})`;
+    
+    playSound('evolve');
+    
+    // Bounce Animation
+    theSlime.style.transform = 'scale(1.5)';
+    setTimeout(() => theSlime.style.transform = 'scale(1)', 300);
+
+    initShop(); // Update shop text with new multipliers
+    updateUI();
+  }
+}
+
+// --- SLIME CLICKING & PARTICLES ---
+
+const particleCanvas = document.getElementById('particle-canvas');
+const ctx = particleCanvas.getContext('2d');
+let particles = [];
+
+// Resize canvas to fit container
+function resizeCanvas() {
+  const rect = document.getElementById('slime-area').getBoundingClientRect();
+  particleCanvas.width = rect.width;
+  particleCanvas.height = rect.height;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+const slimeContainer = document.getElementById('slime-container');
+const theSlime = document.getElementById('the-slime');
+
+slimeContainer.addEventListener('mousedown', (e) => {
+  // Only register if clicking the actual SVG area roughly
+  handleSlimeClick(e.clientX, e.clientY);
+});
+slimeContainer.addEventListener('touchstart', (e) => {
+  e.preventDefault(); // Stop mobile zooming
+  for (let i=0; i<e.changedTouches.length; i++) {
+    handleSlimeClick(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+  }
+}, {passive: false});
+
+function handleSlimeClick(x, y) {
+  const rect = particleCanvas.getBoundingClientRect();
+  const localX = x - rect.left;
+  const localY = y - rect.top;
+
+  // Add Coins
+  const val = getClickValue();
+  coins += val;
+  totalClicks++;
+  
+  playSound('click');
+  updateUI();
+
+  // Visual Compression Animation
+  theSlime.style.animation = 'none';
+  theSlime.style.transform = 'scale(1.2, 0.8) translateY(10px)';
+  setTimeout(() => {
+    theSlime.style.transform = 'scale(1, 1) translateY(0)';
+    theSlime.style.animation = 'breathe 3s infinite ease-in-out alternate';
+  }, 50);
+
+  // Spawn Floating Text (+Value)
+  particles.push({
+    text: "+" + formatNumber(val),
+    x: localX,
+    y: localY,
+    vy: -2 - Math.random() * 2,
+    vx: (Math.random() - 0.5) * 2,
+    life: 1.0,
+    type: 'text'
+  });
+
+  // Spawn Little Stars/Sparks
+  for(let i=0; i<4; i++) {
+    particles.push({
+      x: localX + (Math.random()-0.5)*40,
+      y: localY + (Math.random()-0.5)*40,
+      vx: (Math.random() - 0.5) * 5,
+      vy: (Math.random() - 0.5) * 5 - 2,
+      life: 1.0,
+      color: evolutions[currentEvolution].color,
+      type: 'spark'
+    });
+  }
+}
+
+// --- GAME LOOP ---
+
+let lastTime = performance.now();
+
+function gameLoop(time) {
+  const dt = (time - lastTime) / 1000;
+  lastTime = time;
+
+  // Idle Income
+  const cps = getCPS();
+  if (cps > 0) {
+    coins += cps * dt;
+  }
+
+  // Limit UI updates to save performance (we don't need 60fps text updates)
+  if (Math.random() < 0.2) updateUI();
+
+  // Particle Engine
+  ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+  
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= dt * 1.5; // fade out speed
+
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+      continue;
+    }
+
+    ctx.globalAlpha = p.life;
+    if (p.type === 'text') {
+      ctx.font = 'bold 24px monospace';
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillText(p.text, p.x, p.y);
+    } else {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// Start
+initShop();
+updateUI();
+requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>
